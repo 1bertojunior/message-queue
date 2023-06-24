@@ -1,0 +1,4 @@
+pika
+retrying
+requests
+mysql-connector-python

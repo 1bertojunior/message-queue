@@ -1,0 +1,81 @@
+version: '3.3'
+
+networks:
+  my_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/29
+
+services:
+  rabbitmq:
+      image: "rabbitmq:3-management"
+      container_name: rabbitmq
+      hostname: rabbitmq
+      ports:
+        - "8000:15672"
+        - "5672:5672"
+        #- "8000:5672"
+      volumes:
+        - "./rabbitmq_data:/var/lib/rabbitmq/mnesia"
+      networks:
+        my_network:
+          ipv4_address: 172.20.0.2
+  
+  # PRODUCER
+  producer:
+    build:
+      context: ./producer
+      dockerfile: Dockerfile
+    container_name: producer
+    ports:
+      - 3001:3000
+      - 8001:80
+    volumes:
+      - ./producer:/app
+    depends_on: 
+      - rabbitmq
+    networks:
+      my_network:
+        ipv4_address: 172.20.0.3
+    command: >
+      bash -c "cd /app && pip install --no-cache-dir -r requirements.txt && python3 produce.py"
+    #restart: always
+
+  # CONSUMER
+  consumer:
+    build:
+      context: ./consumer
+      dockerfile: Dockerfile
+    container_name: consumer
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    ports:
+      - 3000:3000
+    volumes:
+      - ./consumer:/app
+    depends_on: 
+      - rabbitmq
+    networks:
+      my_network:
+        ipv4_address: 172.20.0.4
+    command: >
+      bash -c "cd /app && pip install --no-cache-dir -r requirements.txt && python3 consume.py"
+    #restart: always
+
+  db-mysql:
+    container_name: db-mysql
+    build:
+      context: ./db-mysql
+      dockerfile: Dockerfile
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=myroot
+      - TZ=America/Fortaleza  
+    volumes:
+      - ./db-mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      my_network:
+        ipv4_address: 172.20.0.5
+    restart: always

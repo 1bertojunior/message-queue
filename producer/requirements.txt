@@ -1,0 +1,6 @@
+pika
+fastapi
+retrying
+uvicorn
+pythonping
+mysql-connector-python
